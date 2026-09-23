@@ -1,3 +1,4 @@
+// Pipeline de CI/CD: sobe a infraestrutura e executa as etapas do pipeline de dados em sequência.
 pipeline {
     agent any
 

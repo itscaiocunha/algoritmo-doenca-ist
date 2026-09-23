@@ -1,6 +1,6 @@
 FROM r-base:latest
 
-# Instala dependências do sistema
+# Dependências de sistema (compilação dos pacotes R e cliente do PostgreSQL para o pg_isready)
 RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     libssl-dev \
@@ -11,15 +11,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Instala pacotes R necessários
+# Pacotes R necessários
 RUN R -e "install.packages(c('knitr', 'ggplot2', 'dplyr', 'tidyr', 'tools', 'RPostgreSQL'), repos='http://cran.r-project.org')"
 
-# Copia o script R e o script de espera
-COPY analise.R .
-COPY wait_for_file.sh .
+COPY R/ ./R/
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
-# Dá permissão de execução ao script
-RUN chmod +x wait_for_file.sh
-
-# Usa o script como comando principal
-CMD ["./wait_for_file.sh"]
+CMD ["./entrypoint.sh"]

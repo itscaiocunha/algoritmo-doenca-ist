@@ -1,0 +1,12 @@
+jupyter
+findspark
+pyspark==3.4.4
+folium
+seaborn
+plotly
+matplotlib
+ipywidgets
+scikit-learn
+pandas
+numpy
+scipy

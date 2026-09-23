@@ -18,146 +18,185 @@
 
 Este projeto tem como objetivo principal demonstrar a construção e automação de um **pipeline de dados** completo, desde a geração de dados simulados até a análise, visualização e aplicação de modelos de Machine Learning (ML) em um contexto de saúde pública, focado em **Infecções Sexualmente Transmissíveis (ISTs)**.
 
-A solução é modularizada usando **Docker Compose**, o que garante um ambiente de desenvolvimento e execução isolado, consistente e reprodutível. O pipeline abrange as seguintes etapas:
+A solução é modularizada usando **Docker Compose**, o que garante um ambiente isolado, consistente e reprodutível. O pipeline abrange as seguintes etapas:
 
-1.  **Geração de Dados Simulados:** Um serviço dedicado em Python cria um conjunto de dados simulados de registros de pacientes, incluindo informações demográficas, de saúde e de localização.
-2.  **Armazenamento de Dados:** Um banco de dados **PostgreSQL** é utilizado como o Data Lake/Warehouse, armazenando os dados gerados de forma estruturada.
-3.  **Análise de Dados com R:** Um serviço em R realiza análises exploratórias e transformações nos dados.
-4.  **Processamento e Análise de Big Data (Spark):** Um serviço em Python/PySpark executa um notebook Jupyter (de forma automatizada) para realizar:
-    - Pré-processamento avançado e engenharia de features.
-    - Processamento de Linguagem Natural (PLN) em campos textuais.
-    - Construção de um Data Warehouse com dimensões e tabelas fato.
-    - Análises OLAP (Online Analytical Processing).
-    - Aplicação de modelos de Classificação (Regressão Logística, Random Forest, Naive Bayes) para prever a presença de ISTs.
-    - Aplicação de modelos de Clusterização (K-Means) para identificar perfis de pacientes.
-    - Geração de visualizações e gráficos detalhados.
-5.  **Visualização e Monitoramento (Grafana):** Uma instância do Grafana é configurada para criar dashboards interativos, permitindo a visualização e monitoramento dos dados e resultados das análises.
-6.  **Controle de CI/CD (jenkins):** Para automatizar a integração contínua (CI) e a entrega contínua (CD) deste pipeline de dados.
+1.  **Geração de Dados Simulados:** um serviço em Python cria registros de pacientes (dados demográficos, de saúde e de localização) com ruídos intencionais — grafias inconsistentes, campos vazios, outliers e datas futuras — simulando o preenchimento humano.
+2.  **Análise e Tratamento com R:** análise exploratória (estatísticas descritivas, outliers), imputação de valores ausentes e padronização das categorias.
+3.  **Armazenamento:** os dados tratados são gravados em CSV (consumido pelo Spark) e no **PostgreSQL** (consumido pelo Grafana).
+4.  **Processamento e Análise de Big Data (Spark):** um notebook Jupyter, executado automaticamente, realiza:
+    - Pré-processamento e engenharia de features;
+    - Processamento de Linguagem Natural (TF-IDF);
+    - Construção de um Data Warehouse (esquema estrela) e análises OLAP em Spark SQL;
+    - Agregações no paradigma Hadoop MapReduce;
+    - Classificação (Regressão Logística, Random Forest, Naive Bayes) para prever a presença de ISTs;
+    - Clusterização (K-Means) para identificar perfis de pacientes;
+    - Geração de gráficos e de um mapa interativo.
+5.  **Visualização e Monitoramento (Grafana):** dashboards interativos sobre os dados no PostgreSQL.
+6.  **CI/CD (Jenkins):** execução automatizada e periódica de todo o pipeline.
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    subgraph Pipeline
+        G["gerador-dados<br/>(Python + Faker)"] -->|dados_ist_realistas.csv| R["analise-dados<br/>(R)"]
+        R -->|dados_ist_tratados.csv| S["bigdata<br/>(PySpark + Jupyter)"]
+    end
+    R -->|tabela dados_ist_tratados| P[(PostgreSQL)]
+    P --> GF[Grafana]
+    S -->|gráficos, mapa e notebook executado| O[/bigdata_output/]
+    O --> W[Página web]
+    J[Jenkins] -. orquestra .-> Pipeline
+```
+
+Cada etapa é um container independente, que se comunica com as demais apenas por **arquivos no volume
+compartilhado `data/`** ou pelo **PostgreSQL**. Isso permite executar, testar e evoluir cada etapa isoladamente.
+
+### Decisões de projeto
+
+- **Separação entre lógica e apresentação:** a etapa de Big Data é um pacote Python (`ist_bigdata`), com um módulo por
+  responsabilidade (pré-processamento, PLN, warehouse, OLAP, MapReduce, classificação, clusterização...). O notebook
+  apenas orquestra as chamadas e documenta os resultados, funcionando como relatório executável.
+- **Configuração centralizada:** constantes de domínio (lista de ISTs, doenças curáveis, coordenadas, hiperparâmetros)
+  ficam em um módulo `config` por serviço; credenciais e portas vêm de variáveis de ambiente (`.env`), com valores
+  padrão para que o projeto rode sem nenhuma configuração extra.
+- **Funções pequenas e composáveis no R:** exploração, tratamento e exportação ficam em arquivos separados, e o
+  tratamento é encadeado com o operador pipe (`|>`), tornando explícita a ordem das transformações.
+- **Resiliência na orquestração:** a etapa em R aguarda o CSV do gerador e a disponibilidade do PostgreSQL antes de iniciar.
 
 ## Tecnologias Utilizadas
 
-- **Docker** e **Docker Compose**: Para orquestração e gerenciamento dos containers e do ambiente de desenvolvimento.
-- **Python 3.9**: Utilizado nos serviços de `gerador-dados` e `bigdata`, bem como para as bibliotecas de análise.
-  - **PySpark 3.4.4**: Framework de processamento de Big Data.
-  - **Pandas**: Manipulação e análise de dados em Python.
-  - **Numpy**: Computação numérica em Python.
-  - **Scikit-learn**: Modelos de Machine Learning (classificação e clusterização).
-  - **Matplotlib**, **Seaborn**, **Plotly**, **Folium**: Bibliotecas para visualização e criação de mapas interativos.
-  - **Faker**: Geração de dados simulados.
-- **R**: Utilizado no serviço `analise-r` para análises estatísticas e transformações.
-  - **`knitr`, `ggplot2`, `dplyr`, `tidyr`, `tools`, `RPostgreSQL`**: Pacotes R para análise e manipulação de dados, e conexão com PostgreSQL.
-- **PostgreSQL 15**: Banco de dados relacional para armazenamento de dados.
-- **Grafana 10.4.1**: Plataforma de visualização e monitoramento.
+- **Docker** e **Docker Compose**: orquestração dos containers e do ambiente.
+- **Python**: 3.11 no `gerador-dados` e 3.9 no `bigdata`.
+  - **PySpark 3.4.4**: processamento de Big Data.
+  - **Pandas** e **Numpy**: manipulação de dados e computação numérica.
+  - **Scikit-learn**: métricas de avaliação dos modelos.
+  - **Matplotlib**, **Seaborn**, **Folium**: gráficos e mapa interativo.
+  - **Faker**: geração de dados simulados.
+- **R**: análise estatística e tratamento dos dados.
+  - **`knitr`, `ggplot2`, `dplyr`, `tidyr`, `tools`, `RPostgreSQL`**: análise, manipulação e conexão com PostgreSQL.
+- **PostgreSQL 15**: banco de dados relacional.
+- **Grafana 10.4.1**: visualização e monitoramento.
+- **Jenkins**: CI/CD.
 
 ---
 
-## Como Instalar e Executar o Projeto
+## Estrutura do Projeto
 
-Siga os passos abaixo para configurar e executar o pipeline completo em sua máquina local.
+```
+.
+├── docker-compose.yml            # Orquestração de todos os serviços
+├── Jenkinsfile                   # Pipeline de CI/CD
+├── .env.example                  # Credenciais e portas (opcional)
+│
+├── services/                     # Etapas do pipeline de dados
+│   ├── gerador_dados/            # 1. Geração de dados simulados (Python)
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── gerador/
+│   │       ├── config.py         #    Distribuições, cidades e probabilidades de ruído
+│   │       ├── geradores.py      #    Geração de cada atributo do registro
+│   │       └── __main__.py       #    Ponto de entrada (python -m gerador)
+│   │
+│   ├── analise_r/                # 2. Análise exploratória e tratamento (R)
+│   │   ├── Dockerfile
+│   │   ├── entrypoint.sh         #    Aguarda CSV + PostgreSQL e executa a análise
+│   │   └── R/
+│   │       ├── main.R            #    Orquestra: importação -> exploração -> tratamento -> exportação
+│   │       ├── config.R
+│   │       ├── exploracao.R
+│   │       ├── tratamento.R
+│   │       └── exportacao.R
+│   │
+│   └── bigdata/                  # 3. Big Data e Machine Learning (PySpark)
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       ├── main.ipynb            #    Relatório executável (orquestra o pacote abaixo)
+│       └── ist_bigdata/
+│           ├── config.py         #    Constantes de domínio e hiperparâmetros
+│           ├── sessao.py         #    SparkSession e leitura dos dados
+│           ├── preprocessamento.py
+│           ├── pln.py
+│           ├── warehouse.py
+│           ├── olap.py
+│           ├── mapreduce.py
+│           ├── temporal.py
+│           ├── geo.py
+│           ├── classificacao.py
+│           ├── clusterizacao.py
+│           └── graficos.py
+│
+├── infra/
+│   ├── grafana/                  # Provisionamento e dashboard do Grafana
+│   └── jenkins/                  # Imagem do Jenkins com Docker CLI
+│
+├── web/                          # Página estática com os resultados
+│   ├── index.html
+│   └── style.css
+│
+├── data/                         # (gerado) CSVs bruto e tratado
+└── bigdata_output/               # (gerado) Notebook executado, gráficos e mapa
+```
+
+## Como Instalar e Executar o Projeto
 
 ### Pré-requisitos
 
-Certifique-se de ter as seguintes ferramentas instaladas em seu sistema operacional:
-
-- **Docker Desktop**: Inclui Docker Engine e Docker Compose.
-  - [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
-
-### Estrutura do Projeto
-
-A estrutura de diretórios do projeto deve ser organizada da seguinte forma:
-
-```
-ProjetoDataScience/
-├── docker-compose.yml # Orquestração de todos os serviços Docker
-├── .gitignore # Arquivos e pastas a serem ignorados pelo Git
-├── Jenkinsfile # Arquivo de configuração Jenkins para CI/CD
-├── README.md
-│
-├── data/ # Diretório para dados de entrada (CSV)
-│
-├── bigdata/ # Serviço de processamento e análise de Big Data (Python/Spark)
-│ ├── Dockerfile # Define a imagem Docker para o serviço
-│ ├── main.ipynb # Notebook Jupyter principal com análises e ML
-│
-├── bigdata_output/ # Diretório de saída dos notebooks e gráficos gerados
-│
-├── analise_r/ # Serviço de análise de dados com R
-│ ├── Dockerfile # Define a imagem Docker para o serviço
-│ └── analise.R # Script R de análise
-│ └── wait_for_file.sh # Script de espera para arquivos
-│
-├── gerador_dados/ # Serviço de geração de dados (Python)
-│ ├── Dockerfile # Define a imagem Docker para o serviço
-│ └── gerador_dados.py # Script Python para geração de dados
-│
-├── grafana/ # Configurações do Grafana
-│ ├── provisioning/
-│ │ └── dashboards/ # Provisão de dashboards
-│ │ └── dashboard.json # Configuração de dashboard
-│ └── dashboards/ # Dashboards reais
-│
-├── jenkins_custom/ # Arquivos de configuração Jenkins customizados
-│ ├── Dockerfile # Define a imagem Docker para o serviço
-```
+- **Docker Desktop** (inclui Docker Engine e Docker Compose) — [download](https://www.docker.com/products/docker-desktop)
 
 ### Passos para Execução
 
-1.  **Navegue até o Diretório do Projeto:**
-    Abra seu terminal ou prompt de comando e navegue até o diretório raiz do projeto `ProjetoDataScience/` (onde o arquivo `docker-compose.yml` está localizado).
+1.  **Navegue até o diretório do projeto** (onde está o `docker-compose.yml`):
 
     ```bash
-    cd /caminho/para/ProjetoDataScience
+    cd /caminho/para/algoritmo-doenca-ist
     ```
 
-2.  **Crie a Pasta de Saída:**
-    Crie o diretório `bigdata_output` na raiz do projeto. Este diretório será usado para armazenar o notebook executado (`resultado_main.ipynb`) e os gráficos/mapas gerados.
+2.  **(Opcional) Configure credenciais e portas:**
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Sem o `.env`, são usados os mesmos valores padrão listados no `.env.example`.
+
+3.  **Crie a pasta de saída:**
 
     ```bash
     mkdir bigdata_output
     ```
 
-3.  **Execute o Docker Compose:**
-    O comando abaixo irá construir as imagens Docker para cada serviço (se ainda não existirem ou se houver alterações no `Dockerfile`) e iniciar todos os containers definidos no `docker-compose.yml`.
+4.  **Execute o Docker Compose:**
 
     ```bash
     docker compose up --build
     ```
 
-    - A flag `--build` é crucial, pois ela força o Docker a reconstruir as imagens, garantindo que todas as dependências e alterações nos Dockerfiles sejam aplicadas.
-    - Se você quiser rodar apenas o serviço `bigdata` e suas dependências (ignorando `gerador_dados` e `analise_r` temporariamente se já tiver dados), pode usar `docker compose up --build bigdata`. No entanto, para o pipeline completo, `docker compose up --build` é o ideal.
+    - A flag `--build` força a reconstrução das imagens, garantindo que alterações nos Dockerfiles e no código sejam aplicadas.
+    - Para rodar apenas o `bigdata` e suas dependências: `docker compose up --build bigdata`.
 
-4.  **Acompanhe os Logs:**
-    Você verá os logs de todos os containers sendo exibidos no terminal. Preste atenção aos logs do container `bigdata`, pois ele estará executando o notebook Jupyter.
-
-    - Você pode usar `docker compose logs bigdata` em outra janela de terminal para ver apenas os logs do serviço `bigdata`.
-    - Para seguir os logs em tempo real, use `docker compose logs -f bigdata`.
-
-5.  **Verifique os Resultados:**
-    Após a conclusão da execução de todos os serviços (o container `bigdata` deve parar após o `nbconvert` terminar), navegue até a pasta `bigdata_output/`.
+5.  **Acompanhe os logs:**
 
     ```bash
-    ls bigdata_output/
+    docker compose logs -f bigdata
     ```
 
-    Você deverá encontrar os seguintes arquivos:
+6.  **Verifique os resultados** em `bigdata_output/` (o container `bigdata` encerra após o `nbconvert` terminar):
 
-    - `resultado_main.ipynb`: O notebook Jupyter com todas as células executadas e suas saídas (incluindo gráficos incorporados).
-    - `matriz_confusao.png`: Imagem da matriz de confusão.
-    - `curva_roc.png`: Imagem da curva ROC.
-    - `metodo_cotovelo.png`: Imagem do gráfico do método do cotovelo.
-    - `clusters_kmeans.png`: Imagem da visualização dos clusters.
-    - `mapa_casos_localidade.html`: Arquivo HTML interativo do mapa.
+    - `resultado_main.ipynb`: notebook com todas as células executadas e suas saídas;
+    - Gráficos OLAP: `casos_por_localidade.png`, `media_idade_por_doenca.png`, `media_renda_por_escolaridade_e_doenca.png`, `casos_por_ano_olap.png`;
+    - Gráficos MapReduce: `media_renda_mapreduce.png`, `distribuicao_faixa_etaria_mapreduce.png`;
+    - `casos_por_ano.png`;
+    - Modelos: `matriz_confusao.png`, `curva_roc.png`, `metodo_cotovelo.png`, `clusters_kmeans.png`;
+    - `mapa_casos_localidade.html`: mapa interativo.
 
-    Você pode abrir esses arquivos diretamente para visualizar os resultados da análise.
+    Para uma visão consolidada, abra `web/index.html` no navegador.
 
-6.  **Parar e Remover os Containers (Opcional):**
-    Quando terminar de usar o ambiente, você pode parar e remover todos os containers, redes e volumes criados pelo Docker Compose (exceto volumes nomeados como `pgdata` e `grafana-data`, que persistem para manter seus dados).
+7.  **Grafana:** acesse [http://localhost:3000](http://localhost:3000) (usuário/senha padrão: `admin`/`admin`).
+
+8.  **Parar e remover os containers:**
 
     ```bash
-    docker compose down
+    docker compose down      # mantém os volumes (dados do PostgreSQL e Grafana)
+    docker compose down -v   # remove também os volumes
     ```
-
-    - Se quiser remover também os volumes nomeados (e, portanto, os dados do PostgreSQL e Grafana), use:
-      ```bash
-      docker compose down -v
-      ```

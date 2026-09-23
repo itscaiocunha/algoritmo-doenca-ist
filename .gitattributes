@@ -1,0 +1,8 @@
+# Normaliza finais de linha no repositório
+* text=auto
+
+# Scripts executados dentro de containers Linux precisam de LF,
+# mesmo quando o repositório é clonado no Windows
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+Jenkinsfile text eol=lf

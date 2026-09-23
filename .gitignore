@@ -5,5 +5,14 @@
 data/
 bigdata_output/
 
+# Variáveis de ambiente locais
+.env
+
+# Artefatos de execução
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+Rplots.pdf
+
 # Vagrant
 .vagrant/

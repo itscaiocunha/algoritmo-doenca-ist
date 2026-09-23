@@ -1,64 +1,82 @@
+# Pipeline de dados de ISTs
+#
+#   gerador-dados ──► data/dados_ist_realistas.csv
+#                         │
+#   analise-dados (R) ────┴─► data/dados_ist_tratados.csv ──► bigdata (PySpark) ──► bigdata_output/
+#                         └─► PostgreSQL ──► Grafana
+#
+# Credenciais e portas podem ser sobrescritas via `.env` (veja `.env.example`).
+
+x-postgres-credenciais: &postgres-credenciais
+  POSTGRES_USER: ${POSTGRES_USER:-admin_ist}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-istunifeob}
+  POSTGRES_DB: ${POSTGRES_DB:-ist_db}
+
 services:
+  # --- Etapas do pipeline ---------------------------------------------------
+
   gerador-dados:
     container_name: gerador
-    build: ./gerador_dados
+    build: ./services/gerador_dados
     volumes:
       - "./data:/data"
 
-  postgres:
-    container_name: postgres
-    image: postgres:15
-    environment:
-      POSTGRES_USER: admin_ist
-      POSTGRES_PASSWORD: istunifeob
-      POSTGRES_DB: ist_db
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   analise-dados:
     container_name: analise
-    build: ./analise_r
+    build: ./services/analise_r
+    environment:
+      <<: *postgres-credenciais
+      DB_HOST: postgres
+      DB_PORT: 5432
     volumes:
       - "./data:/data"
     depends_on:
       - gerador-dados
       - postgres
 
-  grafana:
-    image: grafana/grafana:10.4.1
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
-    depends_on:
-      - postgres
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_LOG_LEVEL: debug
-
   bigdata:
     container_name: bigdata
-    build:
-      context: .
-      dockerfile: ./bigdata/Dockerfile
+    build: ./services/bigdata
     volumes:
       - ./data:/app/data
       - ./bigdata_output:/app/output
     depends_on:
       - analise-dados
 
+  # --- Infraestrutura -------------------------------------------------------
+
+  postgres:
+    container_name: postgres
+    image: postgres:15
+    environment:
+      <<: *postgres-credenciais
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - postgres
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_LOG_LEVEL: debug
+
   jenkins:
-    build: ./jenkins_custom
+    build: ./infra/jenkins
     container_name: jenkins
     ports:
-      - "8080:8080"
-      - "50000:50000"
+      - "${JENKINS_PORT:-8080}:8080"
+      - "${JENKINS_AGENT_PORT:-50000}:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
