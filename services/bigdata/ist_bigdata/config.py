@@ -19,10 +19,11 @@ DIR_SAIDA = Path(os.environ.get("DIR_SAIDA", "output"))
 ISTS = ["HIV", "Sífilis", "Gonorreia", "HPV", "Clamídia", "Herpes Genital"]
 CURAVEIS = ["Sífilis", "Gonorreia", "Clamídia"]
 
+# Colunas usadas como features. `doenca` fica de fora de propósito: o rótulo
+# `tem_ist` é derivado dela, e incluí-la entrega a resposta ao modelo (vazamento de dados).
 COLUNAS_CATEGORICAS = {
     # coluna original -> prefixo das colunas derivadas (Idx / Vec)
     "genero": "genero",
-    "doenca": "doenca",
     "localidade": "localidade",
     "nivel_educacional": "nivelEducacional",
 }

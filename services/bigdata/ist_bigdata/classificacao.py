@@ -73,10 +73,17 @@ def plotar_curva_roc(predicoes):
     return auc
 
 
-def comparar_acuracias(predicoes_por_modelo):
+def acuracia_baseline(test_data):
+    """Acurácia de sempre prever a classe majoritária — o piso que um modelo precisa superar."""
+    contagens = test_data.groupBy("label").count().collect()
+    return max(r["count"] for r in contagens) / sum(r["count"] for r in contagens)
+
+
+def comparar_acuracias(predicoes_por_modelo, test_data):
     avaliador = MulticlassClassificationEvaluator(labelCol="label", predictionCol="prediction", metricName="accuracy")
 
     print("\nAcurácia dos Modelos de Classificação:")
+    print(f"Baseline (classe majoritária): {acuracia_baseline(test_data):.4f}")
     acuracias = {}
     for nome, predicoes in predicoes_por_modelo.items():
         acuracias[nome] = avaliador.evaluate(predicoes)
@@ -84,7 +91,13 @@ def comparar_acuracias(predicoes_por_modelo):
     return acuracias
 
 
+def melhor_modelo(acuracias):
+    nome = max(acuracias, key=acuracias.get)
+    print(f"\nMelhor modelo: {nome}")
+    return nome
+
+
 def relatorio_classificacao(predicoes, nome_modelo):
-    print(f"\nRelatório de Classificação para {nome_modelo} (melhor modelo):")
+    print(f"\nRelatório de Classificação para {nome_modelo}:")
     pd_preds = predicoes.select("label", "prediction").toPandas()
     print(classification_report(pd_preds["label"], pd_preds["prediction"]))
