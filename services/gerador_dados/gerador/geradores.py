@@ -37,6 +37,7 @@ def gerar_idade(doenca):
 
 
 def gerar_genero_nome():
+    """60% masculino, 20% feminino, 10% "Não informado" e 10% vazio."""
     prob = random.random()
     if prob < 0.6:
         nome = fake.name_male()
@@ -44,7 +45,7 @@ def gerar_genero_nome():
     elif prob < 0.8:
         nome = fake.name_female()
         genero = random.choice(["Feminino", "feminino", "F", "f"])
-    elif prob < 0.2:
+    elif prob < 0.9:
         nome = fake.name()
         genero = "Não informado"
     else:

@@ -20,13 +20,24 @@ converter_data_teste <- function(dados) {
 
 # --- Dados Categóricos ---
 
+# Substitui valores trabalhando sobre texto. Atribuir diretamente a um factor
+# um rótulo que não está entre seus níveis gera NA em vez do valor desejado.
+recodificar <- function(coluna, de, para) {
+  valores <- as.character(coluna)
+  valores[valores %in% de] <- para
+  valores
+}
+
+# Gênero ausente vira uma categoria explícita: imputá-lo com a moda
+# ("Masculino") inflaria artificialmente esse grupo.
 padronizar_genero <- function(dados) {
   print(summary(dados$genero))
 
-  dados$genero[dados$genero %in% c("f", "F", "feminino")] <- "Feminino"
-  dados$genero[dados$genero %in% c("m", "M", "masculino")] <- "Masculino"
-  dados$genero[dados$genero %in% c("Não informado", "")] <- "Masculino"
-  dados$genero <- factor(dados$genero)
+  dados$genero <- dados$genero |>
+    recodificar(c("f", "F", "feminino"), "Feminino") |>
+    recodificar(c("m", "M", "masculino"), "Masculino") |>
+    recodificar(c("Não informado", ""), "Não Informado") |>
+    factor()
   dados
 }
 
