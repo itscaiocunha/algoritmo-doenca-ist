@@ -5,6 +5,9 @@
 #   analise-dados (R) ────┴─► data/dados_ist_tratados.csv ──► bigdata (PySpark) ──► bigdata_output/
 #                         └─► PostgreSQL ──► Grafana
 #
+# Cada etapa só inicia depois que a anterior termina com sucesso, então
+# `docker compose up` executa o pipeline inteiro na ordem correta.
+#
 # Credenciais e portas podem ser sobrescritas via `.env` (veja `.env.example`).
 
 x-postgres-credenciais: &postgres-credenciais
@@ -31,8 +34,10 @@ services:
     volumes:
       - "./data:/data"
     depends_on:
-      - gerador-dados
-      - postgres
+      gerador-dados:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
   bigdata:
     container_name: bigdata
@@ -41,7 +46,8 @@ services:
       - ./data:/app/data
       - ./bigdata_output:/app/output
     depends_on:
-      - analise-dados
+      analise-dados:
+        condition: service_completed_successfully
 
   # --- Infraestrutura -------------------------------------------------------
 
@@ -54,6 +60,11 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   grafana:
     image: grafana/grafana:10.4.1
