@@ -23,7 +23,8 @@
   "panels": [
     {
       "datasource": {
-        "uid": "grafana-postgresql-datasource"
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres_ist_db_uid"
       },
       "fieldConfig": {
         "defaults": {
@@ -535,7 +536,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT localidade AS \"Localidade\", COUNT(id) AS \"Total de Casos\" FROM dados_ist_tratados WHERE localidade != '' GROUP BY localidade ORDER BY \"Total de Casos\" DESC LIMIT 10;",
+          "rawSql": "SELECT localidade AS \"Localidade\", COUNT(id) AS \"Total de Casos\" FROM dados_ist_tratados WHERE localidade <> 'Não Informado' GROUP BY localidade ORDER BY \"Total de Casos\" DESC LIMIT 10;",
           "refId": "A",
           "sql": {
             "columns": [

@@ -62,11 +62,12 @@ services:
       - "${GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - postgres
     environment:
+      <<: *postgres-credenciais
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_LOG_LEVEL: debug

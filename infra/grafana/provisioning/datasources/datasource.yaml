@@ -1,16 +1,18 @@
-# ./grafana/provisioning/datasources/datasource.yaml
+# Datasource PostgreSQL usado por todos os painéis do dashboard (uid: postgres_ist_db_uid).
+# As credenciais vêm das variáveis de ambiente do container (veja docker-compose.yml).
 apiVersion: 1
 
 datasources:
   - name: ist_db_datasource
-    type: postgres
+    type: grafana-postgresql-datasource
+    uid: postgres_ist_db_uid
     access: proxy
     url: postgres:5432
-    database: ist_db
-    user: admin_ist
-    password: istunifeob
-    uid: postgres_ist_db_uid
+    user: $POSTGRES_USER
     isDefault: true
     jsonData:
+      database: $POSTGRES_DB
       sslmode: "disable"
       timeInterval: "1s"
+    secureJsonData:
+      password: $POSTGRES_PASSWORD
