@@ -18,6 +18,13 @@ converter_data_teste <- function(dados) {
   dados
 }
 
+# Um teste não pode ter sido realizado no futuro: esses registros são inválidos.
+remover_datas_futuras <- function(dados) {
+  futuras <- dados$data_teste > Sys.Date()
+  print(paste("Registros removidos por data de teste futura:", sum(futuras)))
+  dados[!futuras, ]
+}
+
 # --- Dados Categóricos ---
 
 # Substitui valores trabalhando sobre texto. Atribuir diretamente a um factor

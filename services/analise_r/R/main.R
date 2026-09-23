@@ -21,6 +21,7 @@ explorar_renda(dados)
 dados <- dados |>
   imputar_renda_mediana() |>
   converter_data_teste() |>
+  remover_datas_futuras() |>
   padronizar_genero() |>
   padronizar_localidade() |>
   padronizar_nivel_educacional()
