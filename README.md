@@ -1,181 +1,339 @@
-# Pipeline de Big Data para Vigilância de ISTs
+# Automação e Escalabilidade de Pipelines de Big Data
 
-**Pipeline de dados conteinerizado e ponta a ponta para analisar Infecções Sexualmente Transmissíveis (ISTs):
-geração de dados, tratamento estatístico, processamento distribuído, machine learning e dashboards, com
-orquestração via CI/CD.**
+**Impacto de Infecções Sexualmente Transmissíveis (ISTs) no Brasil**
 
-![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
-![Apache Spark](https://img.shields.io/badge/PySpark_3.4-E25A1C?logo=apachespark&logoColor=white)
-![R](https://img.shields.io/badge/R-276DC3?logo=r&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL_15-4169E1?logo=postgresql&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)
-![Jenkins](https://img.shields.io/badge/Jenkins-D24939?logo=jenkins&logoColor=white)
+Caio Grilo da Cunha · Gian Carlos de Freitas Moroni · Haryel Araújo de Oliveira
+Caliari · Jackeline Ayumi Kanekiyo
+Projeto Integrador de Data Science, UNIFEOB (São João da Boa Vista, SP),
+2025.1 · revisão metodológica em 2026
 
 ---
 
-## Visão geral
+## Resumo
 
-Sistemas de vigilância em saúde pública recebem dados vindos de várias fontes, preenchidos à mão e cheios de
-inconsistências. Este projeto implementa, em escala reduzida, a infraestrutura necessária para transformar esses
-dados brutos em informação útil: um pipeline **reprodutível**, em que cada etapa roda isolada em seu próprio container
-e todo o fluxo é executado com um único comando.
+Dados de vigilância em saúde chegam de várias fontes, são preenchidos à mão e
+trazem inconsistências. Este trabalho desenvolveu um pipeline de dados
+conteinerizado, de ponta a ponta, para analisar registros de ISTs: geração,
+tratamento estatístico, processamento distribuído, aprendizado de máquina e
+visualização.
 
-**Destaques**
+- **Pipeline:** cinco etapas isoladas em containers (Python, R, PySpark,
+  PostgreSQL e Grafana), orquestradas por Docker Compose e Jenkins e
+  executáveis com um único comando.
+- **Tratamento:** 10.000 registros simulados com ruído de preenchimento
+  humano (grafias inconsistentes, campos ausentes, outliers e datas
+  impossíveis), padronizados e validados em R.
+- **Classificação:** para prever a presença de IST a partir de dados
+  demográficos, o **Random Forest** atingiu **AUC de 0,80**, mas a acurácia
+  (**65,1 %**) ficou praticamente igual ao baseline (**64,9 %**), por causa
+  do desbalanceamento das classes.
+- **Revisão:** a primeira versão relatava **100 % de acurácia**. A revisão
+  mostrou que o número vinha de **vazamento de dados** e corrigiu esse e
+  outros seis problemas.
 
-- **Poliglota por responsabilidade:** Python para geração e processamento distribuído, R para análise estatística e
-  tratamento, SQL para o data warehouse e os dashboards. Cada linguagem entra onde é mais forte.
-- **Dados com ruído realista:** grafias inconsistentes, campos ausentes, outliers e datas impossíveis, tratados de forma
-  explícita e auditável.
-- **Modelagem dimensional + OLAP** em Spark SQL, e agregações no paradigma **MapReduce** sobre RDDs.
-- **Machine learning com rigor metodológico:** comparação com baseline, análise de AUC e diagnóstico de vazamento de dados
-  (veja [Análise e resultados](#análise-e-resultados)).
-- **Infraestrutura como código:** o datasource e o dashboard do Grafana são provisionados automaticamente, e o Jenkins
-  executa o pipeline de forma periódica.
+**Palavras-chave:** big data; Apache Spark; engenharia de dados; aprendizado
+de máquina; vazamento de dados; saúde pública; ISTs.
 
-## Arquitetura
+## Motivação
 
-```mermaid
-flowchart LR
-    subgraph Pipeline
-        G["Ingestão<br/>Python · Faker"] -->|CSV bruto| R["Tratamento<br/>R"]
-        R -->|CSV tratado| S["Processamento & ML<br/>PySpark · Jupyter"]
-    end
-    R -->|carga| P[(PostgreSQL)]
-    P --> GF["Dashboards<br/>Grafana"]
-    S -->|gráficos · mapa · relatório| O[/Artefatos/]
-    J["CI/CD<br/>Jenkins"] -. orquestra .-> Pipeline
+As ISTs são um problema persistente de saúde pública. A Organização Mundial da
+Saúde tem metas globais de controle para o período 2022–2030 (WHO, 2022), e no
+Brasil o manejo dessas infecções segue protocolos nacionais do Ministério da
+Saúde (Brasil, 2022). Monitorar essas doenças depende de dados de
+notificação, e esses dados raramente estão limpos: há campos vazios, grafias
+divergentes e registros inválidos.
+
+Transformar dados assim em informação confiável exige mais do que um modelo.
+É preciso uma infraestrutura **reprodutível**, que trate os dados de forma
+explícita e auditável e que escale com o volume. Este trabalho combina:
+
+- **Processamento distribuído** com Apache Spark (Zaharia et al., 2016) e o
+  paradigma MapReduce (Dean & Ghemawat, 2008).
+- **Modelagem dimensional** em esquema estrela para análises OLAP (Kimball &
+  Ross, 2013).
+- **Aprendizado supervisionado e não supervisionado** avaliado com métricas
+  adequadas a classes desbalanceadas (Fawcett, 2006; He & Garcia, 2009).
+
+## Dados
+
+Os dados são **sintéticos**, gerados com a biblioteca Faker (`pt_BR`). As
+distribuições foram definidas para imitar um cenário plausível, e o ruído foi
+inserido de propósito para exercitar a etapa de tratamento.
+
+| Item | Valor |
+|------|-------|
+| Registros | **10.000** por execução |
+| Atributos | id, nome, gênero, idade, doença, localidade, escolaridade, renda, data do teste |
+| Doenças | 6 ISTs (HIV, Sífilis, Gonorreia, HPV, Clamídia, Herpes Genital), 5 outras doenças e "Nenhuma" |
+| Proporção de ISTs | **~36 %** dos registros |
+| Localidades | 41 cidades das cinco regiões do país |
+
+**Tabela 1.** Ruído inserido nos dados brutos.
+
+| Tipo de ruído | Exemplo | Frequência |
+|---------------|---------|------------|
+| Grafias inconsistentes | `"m"`, `"masculino"`, `"superio"`, `"fundamnetal"` | gênero e escolaridade |
+| Categoria ausente | gênero, localidade, escolaridade | 10–20 % |
+| Renda ausente | — | 2 % |
+| Outliers de idade e renda | 0–5 ou 90–100 anos; R$ 5–100 ou R$ 30–100 mil | 1 % cada |
+| Data de teste no futuro | até ~3 anos à frente | 2 % |
+
+A idade depende da doença: cada IST tem uma média e um desvio próprios (por
+exemplo, 35 ± 7 anos para HIV e 24 ± 5 para Clamídia).
+
+## Metodologia
+
+Implementado com Python 3.11 (geração), R (tratamento), PySpark 3.4
+(processamento e ML), PostgreSQL 15, Grafana 10 e Jenkins, todos em containers
+Docker.
+
+```
+ ETAPA 1  Ingestão       Faker (pt_BR) ─► dados_ist_realistas.csv (10.000 registros com ruído)
+                                                    │
+                                                    ▼
+ ETAPA 2  Tratamento     R: exploração ─► imputação ─► padronização ─► validação
+                                                    │
+                                   ┌────────────────┴────────────────┐
+                                   ▼                                 ▼
+                         dados_ist_tratados.csv                PostgreSQL ─► Grafana
+                                   │
+                                   ▼
+ ETAPA 3  Processamento  PySpark: esquema estrela ─► OLAP (Spark SQL) · MapReduce (RDD) · TF-IDF
+                                   │
+                                   ▼
+ ETAPA 4  Modelagem      features ─► LR | Random Forest | Naive Bayes     (classificação)
+                                 ─► StandardScaler ─► K-Means ─► PCA     (clusterização)
+
+          Orquestração   Docker Compose (execução local) · Jenkins (execução periódica)
 ```
 
-| Etapa | Tecnologia | Responsabilidade | Saída |
-|---|---|---|---|
-| **Ingestão** | Python, Faker | Simula 10 mil registros de pacientes com ruído de preenchimento humano | `data/dados_ist_realistas.csv` |
-| **Tratamento** | R | Análise exploratória, detecção de outliers, imputação, padronização de categorias, remoção de registros inválidos | CSV tratado + tabela no PostgreSQL |
-| **Processamento & ML** | PySpark | Feature engineering, TF-IDF, data warehouse em esquema estrela, OLAP, MapReduce, classificação e clusterização | Gráficos, mapa interativo e notebook executado |
-| **Visualização** | Grafana | Indicadores sobre os dados tratados | Dashboard provisionado |
-| **Orquestração** | Jenkins, Docker Compose | Build e execução das etapas em sequência | — |
+### Tratamento dos dados
 
-As etapas se comunicam apenas por **contratos de dados**: arquivos em um volume compartilhado ou tabelas no PostgreSQL.
-Assim, cada uma pode ser executada, testada e substituída de forma independente.
+1. **Exploração:** estatísticas descritivas, boxplots e detecção de outliers
+   pela regra do IQR.
+2. **Renda ausente:** imputação pela **mediana**, que é robusta aos outliers
+   de renda (Little & Rubin, 2019).
+3. **Datas futuras:** os registros são **removidos**, porque um teste não pode
+   ter sido feito no futuro.
+4. **Categorias:** as grafias são padronizadas. Gênero e localidade ausentes
+   viram a categoria explícita **"Não Informado"**, sem imputação pela moda,
+   para não inflar artificialmente o grupo majoritário.
 
-## Início rápido
+### Processamento
 
-**Pré-requisito:** [Docker](https://www.docker.com/products/docker-desktop) com Docker Compose.
+- **Data warehouse:** uma tabela fato (`fato_casos`) e cinco dimensões (tempo,
+  localidade, doença, escolaridade e gênero), consultadas em Spark SQL.
+- **MapReduce:** média de renda por IST e distribuição por faixa etária,
+  implementadas com `map` e `reduceByKey` sobre RDDs.
 
-```bash
-git clone https://github.com/itscaiocunha/algoritmo-doenca-ist.git
-cd algoritmo-doenca-ist
-mkdir bigdata_output
-docker compose up --build
-```
+### Classificação
 
-| Serviço | Acesso |
-|---|---|
-| Dashboard Grafana | http://localhost:3000 (`admin` / `admin`) |
-| Jenkins | http://localhost:8080 |
-| PostgreSQL | `localhost:5432` |
-| Artefatos da análise | `bigdata_output/`, ou abra `web/index.html` para uma visão consolidada |
+- **Tarefa:** classificação binária, `tem_ist` (1 se a doença é uma IST).
+- **Features:** idade, renda, gênero, localidade e escolaridade (as três
+  últimas com one-hot encoding). A coluna `doenca` é **excluída**, porque o
+  rótulo é derivado dela (veja [Revisão](#revisão-metodológica)).
+- **Divisão:** treino/teste 70/30 (`seed=42`).
+- **Modelos:**
 
-Para executar uma etapa isoladamente: `docker compose run --rm <gerador-dados | analise-dados | bigdata>`.
+| Modelo | Configuração |
+|--------|--------------|
+| Regressão Logística | `maxIter=10` |
+| Random Forest (Breiman, 2001) | `numTrees=10` |
+| Naive Bayes | multinomial (padrão do Spark) |
+| Baseline | sempre prevê a classe majoritária |
 
-## Análise e resultados
+### Clusterização
 
-### Tratamento de dados
+As features são padronizadas (média 0, desvio 1) antes do **K-Means** (Jain,
+2010). K varia de 2 a 7 pelo método do cotovelo, e os grupos com K = 4 são
+projetados em duas dimensões por **PCA**.
 
-Os dados brutos trazem problemas típicos de sistemas reais, e cada um recebe um tratamento explícito:
+## Resultados
 
-| Problema | Tratamento |
-|---|---|
-| Grafias inconsistentes (`"m"`, `"masculino"`, `"superio"`, `"fundamnetal"`...) | Padronização para categorias canônicas |
-| Gênero e localidade ausentes | Categoria explícita `Não Informado`, sem imputar a moda para não enviesar a distribuição |
-| Renda ausente | Imputação pela mediana, robusta aos outliers de renda |
-| Datas de teste no futuro | Remoção dos registros inválidos |
+Valores de uma execução de referência. Como os dados são gerados a cada
+execução, os números variam levemente, mas os padrões se mantêm.
 
-### Machine learning
+### Tratamento
 
-**Tarefa:** prever se um paciente tem IST a partir de idade, renda, gênero, localidade e escolaridade. Foram comparados
-Regressão Logística, Random Forest e Naive Bayes contra um baseline de classe majoritária.
+**Tabela 2.** Efeito do tratamento sobre os dados brutos.
 
-<p align="center">
-  <img src="docs/img/curva_roc.png" width="45%" alt="Curva ROC do Random Forest">
-  <img src="docs/img/media_idade_por_doenca.png" width="53%" alt="Média de idade por tipo de IST">
+| Etapa | Resultado |
+|-------|-----------|
+| Registros removidos por data futura | 206 (2,1 %), restando **9.794** |
+| Rendas imputadas pela mediana | 202 (mediana de R$ 1.831,50) |
+| Gênero padronizado | 10 variantes → Masculino (6.006), Feminino (1.877), Não Informado (1.911) |
+| Escolaridade padronizada | 7 variantes → Fundamental (5.606), Superior (2.788), Médio (1.400) |
+| Localidade ausente | 993 registros → "Não Informado" |
+
+### Classificação
+
+**Tabela 3.** Desempenho no conjunto de teste (2.840 amostras).
+
+| Modelo | Acurácia | AUC | Recall (classe 0 / classe 1) |
+|--------|----------|-----|------------------------------|
+| Baseline (classe majoritária) | 64,86 % | 0,500 | 1,00 / 0,00 |
+| **Random Forest (campeão)** | **65,14 %** | **0,801** | **0,98 / 0,04** |
+| Regressão Logística | 58,84 % | — | — |
+| Naive Bayes | 55,67 % | — | — |
+
+- **A acurácia empata com o baseline.** O Random Forest quase sempre prevê a
+  classe majoritária ("sem IST"): o recall da classe positiva é de 4 %.
+- **Mas a AUC de 0,80 mostra sinal real.** As probabilidades estimadas
+  separam bem as classes, e o sinal vem sobretudo da **idade**, já que cada
+  IST se concentra em uma faixa etária (figura abaixo, à direita).
+- A Regressão Logística e o Naive Bayes ficaram **abaixo do baseline**.
+
+<p float="left">
+  <img src="docs/img/curva_roc.png" width="40%" />
+  <img src="docs/img/media_idade_por_doenca.png" width="55%" />
 </p>
 
-| Modelo | Acurácia | AUC |
-|---|---|---|
-| Baseline (classe majoritária) | 0,636 | — |
-| Regressão Logística | 0,590 | — |
-| Naive Bayes | 0,565 | — |
-| **Random Forest** | **0,637** | **0,822** |
+> Curva ROC do Random Forest e média de idade por tipo de IST, geradas pelo
+> notebook [`main.ipynb`](services/bigdata/main.ipynb).
 
-**Leitura dos resultados.** A acurácia do Random Forest empata com o baseline, mas a **AUC de 0,82** mostra que o modelo
-separa bem as classes. O sinal vem sobretudo da idade, já que cada IST se concentra em uma faixa etária (gráfico acima).
-O gargalo está no **limiar de decisão** combinado ao desbalanceamento das classes, não na falta de informação. É um
-exemplo concreto de por que a acurácia, sozinha, é uma métrica inadequada nesse cenário.
+### Clusterização
 
-Na clusterização (K-Means sobre features padronizadas), o custo cai de forma linear, sem "cotovelo". Isso é coerente
-com dados cujos atributos são simulados de forma independente, e indica que não há estrutura natural de grupos.
-
-*Os dados são gerados a cada execução, então os valores variam levemente; os padrões se mantêm.*
+O custo (WCSS) cai de forma quase linear com K, de 476,7 mil (K = 2) para
+429,5 mil (K = 7), cerca de 2 % por cluster adicional. **Não há "cotovelo".**
 
 ### Revisão metodológica
 
-A primeira versão do projeto (2025, preservada na tag [`v1.0-pi-2025`](../../tree/v1.0-pi-2025)) relatava
-**100% de acurácia**. Uma revisão posterior identificou a causa: **vazamento de dados**. A coluna `doenca`, da qual o
-rótulo é derivado, estava entre as features. A mesma revisão encontrou falhas no tratamento (localidades exportadas como
-`NA`, datas futuras não removidas, gênero ausente imputado como "Masculino") e um K-Means sem padronização, dominado pela
-escala da renda.
+A primeira versão do projeto (2025) está preservada na tag
+[`v1.0-pi-2025`](../../tree/v1.0-pi-2025). Uma revisão posterior encontrou
+os problemas abaixo, e cada correção está em um commit próprio.
 
-Cada correção está documentada em um commit próprio no histórico do repositório. Os números acima já refletem a versão
-corrigida.
+**Tabela 4.** Métricas antes e depois da correção do vazamento de dados.
+
+| Métrica | v1.0 (2025) | Revisado |
+|---------|-------------|----------|
+| Acurácia, Regressão Logística | 100,00 % | 58,84 % |
+| Acurácia, Random Forest | 97,38 % | 65,14 % |
+| Acurácia, Naive Bayes | 80,04 % | 55,67 % |
+| AUC, Random Forest | 0,998 | 0,801 |
+
+**Tabela 5.** Problemas encontrados na revisão.
+
+| # | Problema | Impacto |
+|---|----------|---------|
+| 1 | **Vazamento de dados:** `doenca` usada como feature, embora o rótulo seja derivado dela | Métricas artificiais e conclusões inválidas sobre o melhor modelo |
+| 2 | K-Means sem padronização | A renda dominava as distâncias (WCSS ~10¹⁰), e os clusters eram faixas de renda |
+| 3 | Localidade ausente virava `NA` (rótulo atribuído a um *factor* que não o continha) | ~10 % das localidades perdidas |
+| 4 | Datas futuras não removidas | "Casos" em anos que ainda não ocorreram |
+| 5 | Gênero ausente imputado como "Masculino" | Grupo masculino inflado |
+| 6 | Datasource do Grafana não provisionado | Dashboard inoperante sem configuração manual |
+| 7 | Gráfico "Casos de IST por Ano" contava todos os registros | Leitura equivocada |
+
+## Discussão
+
+**1. A acurácia é uma métrica enganosa neste problema.** Com ~65 % dos
+registros na classe negativa, um modelo que sempre responde "sem IST" já
+atinge 65 %. O Random Forest tem AUC de 0,80, ou seja, ordena bem os
+pacientes por risco. O problema está no **limiar de decisão** de 0,5,
+inadequado para classes desbalanceadas (He & Garcia, 2009). A informação
+existe, mas o critério de decisão não a aproveita.
+
+**2. O vazamento de dados produz resultados plausíveis e falsos.** Na v1.0, a
+coluna `doenca` estava entre as features. Como `tem_ist` é uma função
+determinística dela, o modelo não precisava aprender nada, e bastava uma
+regra linear para chegar a 100 %. É um caso clássico de *leakage* (Kaufman et
+al., 2012): o sintoma, um desempenho bom demais, é justamente o que costuma
+passar sem questionamento.
+
+**3. Os modelos abaixo do baseline têm causas identificáveis.** A Regressão
+Logística recebe features sem padronização (renda na casa dos milhares ao
+lado de variáveis binárias) e só 10 iterações. O Naive Bayes multinomial
+assume distribuições de contagem que não correspondem à idade e à renda.
+
+**4. A ausência de clusters reflete os dados.** Na simulação, os atributos
+são sorteados quase de forma independente. Sem estrutura latente, o K-Means
+particiona o espaço de forma arbitrária, e o WCSS decresce linearmente. É o
+resultado esperado, não uma falha do algoritmo.
+
+## Conclusões
+
+- A arquitetura em containers isolados, que se comunicam por **contratos de
+  dados** (arquivos e tabelas), permitiu executar, depurar e substituir cada
+  etapa de forma independente.
+- O tratamento explícito do ruído mostrou que **pequenas escolhas mudam os
+  dados**: imputar pela moda ou atribuir rótulos inválidos a um *factor*
+  distorceu ~10–20 % dos registros na primeira versão.
+- Há **sinal preditivo real** na idade (AUC de 0,80), mas a acurácia, sozinha,
+  esconde que o modelo quase não identifica a classe positiva.
+- O resultado de 100 % da primeira versão era **vazamento de dados**. Um
+  resultado modesto e bem explicado vale mais do que um desempenho perfeito e
+  falso.
+
+## Trabalhos futuros
+
+Melhorias na modelagem:
+
+- **Balanceamento de classes:** pesos por classe ou reamostragem no conjunto
+  de treino.
+- **Ajuste do limiar** pela curva ROC, e seleção de modelos por AUC ou pelo F1
+  da classe positiva.
+- **Validação cruzada** e padronização das features para a Regressão
+  Logística.
+
+Extensões do pipeline:
+
+- **Dados reais:** integrar bases públicas de notificação, como o
+  DATASUS/SINAN, no lugar dos dados sintéticos.
+- **Escala:** executar o Spark em cluster. O código de análise independe do
+  modo de execução.
+- **Qualidade:** testes automatizados das transformações e validação de schema
+  entre as etapas.
+
+## Como executar
+
+```bash
+mkdir bigdata_output
+docker compose up --build       # sobe a infraestrutura e executa o pipeline
+
+# ou uma etapa por vez:
+docker compose run --rm gerador-dados
+docker compose run --rm analise-dados
+docker compose run --rm bigdata
+```
+
+| Serviço | Código | O que faz |
+|---------|--------|-----------|
+| `gerador-dados` | `services/gerador_dados/gerador/` | Etapa 1: gera os 10.000 registros com ruído em `data/`. |
+| `analise-dados` | `services/analise_r/R/` | Etapa 2: exploração, tratamento e exportação para CSV e PostgreSQL. |
+| `bigdata` | `services/bigdata/ist_bigdata/` | Etapas 3 e 4: executa o notebook e salva gráficos, mapa e relatório em `bigdata_output/`. |
+| `grafana` | `infra/grafana/` | Dashboard em http://localhost:3000 (`admin` / `admin`), com o datasource já provisionado. |
+| `jenkins` | `Jenkinsfile` | Executa o pipeline periodicamente, em http://localhost:8080. |
+
+Credenciais e portas têm valores padrão e podem ser sobrescritas copiando
+[`.env.example`](.env.example) para `.env`. As constantes de domínio e os
+hiperparâmetros ficam em um módulo `config` por serviço. Os resultados podem
+ser vistos de forma consolidada em [`web/index.html`](web/index.html).
 
 ## Estrutura do repositório
 
 ```
-services/
-├── gerador_dados/      Ingestão: pacote `gerador` (config de domínio + geradores)
-├── analise_r/          Tratamento: exploração, tratamento e exportação em módulos R
-└── bigdata/            Processamento & ML
-    ├── ist_bigdata/    Pacote com um módulo por etapa (warehouse, olap, mapreduce, classificacao...)
-    └── main.ipynb      Relatório executável que orquestra o pacote
-infra/
-├── grafana/            Provisionamento do datasource e do dashboard
-└── jenkins/            Imagem do Jenkins com Docker CLI
-web/                    Página estática com os resultados
-docker-compose.yml      Orquestração dos serviços
-Jenkinsfile             Pipeline de CI/CD
+├── docker-compose.yml       # orquestração dos serviços
+├── Jenkinsfile              # pipeline de CI/CD
+├── services/
+│   ├── gerador_dados/       # etapa 1: geração dos dados (Python)
+│   ├── analise_r/           # etapa 2: tratamento (R: exploração, tratamento, exportação)
+│   └── bigdata/             # etapas 3 e 4: pacote ist_bigdata + notebook main.ipynb
+├── infra/                   # provisionamento do Grafana e imagem do Jenkins
+├── web/                     # página com os resultados
+├── docs/img/                # figuras do README
+├── data/                    # CSVs bruto e tratado (gerado, não versionado)
+└── bigdata_output/          # gráficos, mapa e notebook executado (gerado, não versionado)
 ```
 
-**Decisões de projeto**
+## Referências
 
-- **Lógica fora do notebook:** o código de análise vive em um pacote Python modular e testável; o notebook apenas
-  orquestra as chamadas e documenta os resultados.
-- **Configuração centralizada:** as constantes de domínio ficam em um módulo `config` por serviço, e credenciais e portas
-  vêm de variáveis de ambiente, com valores padrão que permitem rodar sem nenhuma configuração.
-- **Transformações explícitas:** no R, o tratamento é uma cadeia de funções puras (`dados |> imputar() |> padronizar()`),
-  o que deixa a ordem das operações evidente e fácil de auditar.
-
-## Configuração
-
-Todas as variáveis são opcionais. Para sobrescrever os valores padrão, copie o arquivo `.env.example` para `.env`.
-
-| Variável | Padrão | Uso |
-|---|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `admin_ist` / `istunifeob` / `ist_db` | Banco e datasource do Grafana |
-| `POSTGRES_PORT` | `5432` | Porta exposta do PostgreSQL |
-| `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | `admin` / `admin` | Login do Grafana |
-| `GRAFANA_PORT` / `JENKINS_PORT` | `3000` / `8080` | Portas expostas |
-
-## Limitações e próximos passos
-
-- **Dados sintéticos:** as distribuições foram definidas manualmente. Um próximo passo natural é integrar bases públicas,
-  como o **DATASUS/SINAN**.
-- **Modelagem:** balanceamento de classes, ajuste do limiar pela curva ROC, validação cruzada e seleção de modelos por
-  AUC/F1 da classe positiva.
-- **Escala:** o Spark roda em modo local. A arquitetura permite migrar para um cluster sem alterar o código de análise.
-- **Qualidade:** testes automatizados das transformações e validação de schema entre as etapas.
-
-## Créditos
-
-Projeto desenvolvido originalmente em 2025 por **Caio Grilo da Cunha**, **Gian Carlos de Freitas Moroni**,
-**Haryel Araújo de Oliveira Caliari** e **Jackeline Ayumi Kanekiyo**, como Projeto Integrador de Data Science na UNIFEOB.
-Arquitetura e metodologia revisadas em 2026.
+- BRASIL. Ministério da Saúde. *Protocolo Clínico e Diretrizes Terapêuticas para Atenção Integral às Pessoas com Infecções Sexualmente Transmissíveis (IST)*. Brasília: Ministério da Saúde, 2022.
+- BREIMAN, L. Random Forests. *Machine Learning*, v. 45, n. 1, p. 5–32, 2001.
+- DEAN, J.; GHEMAWAT, S. MapReduce: simplified data processing on large clusters. *Communications of the ACM*, v. 51, n. 1, p. 107–113, 2008.
+- FAWCETT, T. An introduction to ROC analysis. *Pattern Recognition Letters*, v. 27, n. 8, p. 861–874, 2006.
+- HE, H.; GARCIA, E. A. Learning from imbalanced data. *IEEE Transactions on Knowledge and Data Engineering*, v. 21, n. 9, p. 1263–1284, 2009.
+- JAIN, A. K. Data clustering: 50 years beyond K-means. *Pattern Recognition Letters*, v. 31, n. 8, p. 651–666, 2010.
+- KAUFMAN, S. et al. Leakage in data mining: formulation, detection, and avoidance. *ACM Transactions on Knowledge Discovery from Data*, v. 6, n. 4, p. 1–21, 2012.
+- KIMBALL, R.; ROSS, M. *The Data Warehouse Toolkit: the definitive guide to dimensional modeling*. 3. ed. Indianapolis: Wiley, 2013.
+- LITTLE, R. J. A.; RUBIN, D. B. *Statistical Analysis with Missing Data*. 3. ed. Hoboken: Wiley, 2019.
+- WORLD HEALTH ORGANIZATION. *Global health sector strategies on, respectively, HIV, viral hepatitis and sexually transmitted infections for the period 2022–2030*. Geneva: WHO, 2022.
+- ZAHARIA, M. et al. Apache Spark: a unified engine for big data processing. *Communications of the ACM*, v. 59, n. 11, p. 56–65, 2016.
