@@ -3,17 +3,29 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pyspark.ml.clustering import KMeans
-from pyspark.ml.feature import PCA
+from pyspark.ml.feature import PCA, StandardScaler
 
 from ist_bigdata import config
 from ist_bigdata.graficos import salvar_figura
+
+COLUNA_FEATURES = "scaledFeatures"
+
+
+def padronizar(df):
+    """Coloca as features na mesma escala (média 0, desvio 1).
+
+    O K-Means e o PCA se baseiam em distâncias/variância: sem padronização, a renda
+    (em reais) domina todas as outras variáveis e os clusters viram apenas faixas de renda.
+    """
+    scaler = StandardScaler(inputCol="features", outputCol=COLUNA_FEATURES, withMean=True, withStd=True)
+    return scaler.fit(df).transform(df)
 
 
 def metodo_cotovelo(df, ks=config.K_CANDIDATOS):
     """Custo (WCSS) para cada K candidato — ajuda a escolher o número de clusters."""
     custos = []
     for k in ks:
-        modelo = KMeans(featuresCol="features", k=k, seed=config.SEED).fit(df)
+        modelo = KMeans(featuresCol=COLUNA_FEATURES, k=k, seed=config.SEED).fit(df)
         custo = modelo.summary.trainingCost
         custos.append(custo)
         print(f"Custo para k={k}: {custo}")
@@ -29,13 +41,13 @@ def metodo_cotovelo(df, ks=config.K_CANDIDATOS):
 
 
 def agrupar(df, k=config.K_IDEAL):
-    modelo = KMeans(featuresCol="features", k=k, seed=config.SEED).fit(df)
+    modelo = KMeans(featuresCol=COLUNA_FEATURES, k=k, seed=config.SEED).fit(df)
     return modelo.transform(df)
 
 
 def plotar_clusters_pca(clusters, k=config.K_IDEAL):
     """Projeta as features em 2 componentes principais para visualizar os grupos."""
-    pca_model = PCA(k=2, inputCol="features", outputCol="pca_features").fit(clusters)
+    pca_model = PCA(k=2, inputCol=COLUNA_FEATURES, outputCol="pca_features").fit(clusters)
     pca_pd = pca_model.transform(clusters).select("pca_features", "prediction").toPandas()
     pca_pd["x"] = pca_pd["pca_features"].apply(lambda v: v[0])
     pca_pd["y"] = pca_pd["pca_features"].apply(lambda v: v[1])
