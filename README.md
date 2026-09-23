@@ -2,10 +2,10 @@
 
 **Impacto de Infecções Sexualmente Transmissíveis (ISTs) no Brasil**
 
-**Caio Grilo da Cunha**
-**Gian Carlos de Freitas Moroni**
-**Haryel Araújo de Oliveira Caliari**
-**Jackeline Ayumi Kanekiyo**
+- **Caio Grilo da Cunha**
+- **Gian Carlos de Freitas Moroni**
+- **Haryel Araújo de Oliveira Caliari**
+- **Jackeline Ayumi Kanekiyo**
 
 Projeto Integrador de Data Science, UNIFEOB (São João da Boa Vista, SP), 2025.1
 
