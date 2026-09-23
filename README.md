@@ -64,6 +64,49 @@ compartilhado `data/`** ou pelo **PostgreSQL**. Isso permite executar, testar e 
   tratamento é encadeado com o operador pipe (`|>`), tornando explícita a ordem das transformações.
 - **Resiliência na orquestração:** a etapa em R aguarda o CSV do gerador e a disponibilidade do PostgreSQL antes de iniciar.
 
+## 🔍 Revisão 2026
+
+O projeto foi desenvolvido no final de 2025 como Projeto Integrador. Em 2026, revisitei o código com o objetivo de
+reorganizar a arquitetura e, nesse processo, encontrei problemas metodológicos e de tratamento de dados que
+comprometiam parte das conclusões originais. A versão entregue está preservada na tag
+[`v1.0-pi-2025`](../../tree/v1.0-pi-2025), e cada correção está em um commit separado.
+
+### Problemas encontrados e correções
+
+| # | Problema | Impacto | Correção |
+|---|---|---|---|
+| 1 | **Vazamento de dados:** a coluna `doenca` era usada como feature, mas o rótulo `tem_ist` é derivado diretamente dela | Acurácia artificial (100% na Regressão Logística) e conclusões inválidas sobre qual modelo era melhor | Remoção da feature; inclusão de baseline; escolha do melhor modelo pelos resultados |
+| 2 | **K-Means sem padronização:** a renda (em reais) dominava as distâncias | Clusters refletiam apenas faixas de renda (WCSS na ordem de 10¹⁰) | `StandardScaler` antes do K-Means e do PCA |
+| 3 | **Localidade ausente virava `NA`:** o rótulo "Não Informado" era atribuído a um *factor* que não o continha | ~10% das localidades exportadas como `NA`/`NULL` | Recodificação feita sobre texto |
+| 4 | **Datas de teste no futuro não eram tratadas**, embora o gerador as injete como ruído | "Casos" em anos que ainda não ocorreram nas análises temporais | Remoção desses registros (~2%) |
+| 5 | **Gênero ausente imputado como "Masculino"**, e o ramo que gerava "Não informado" nunca era executado | Grupo masculino inflado artificialmente | Categoria explícita "Não Informado" |
+| 6 | **Datasource do Grafana não era provisionado** e um painel apontava para um `uid` inexistente | Dashboard não funcionava sem configuração manual | Provisionamento automático via variáveis de ambiente |
+| 7 | Gráfico intitulado "Casos de IST por Ano" contava **todos** os registros | Leitura equivocada do gráfico | Título corrigido |
+
+### Resultados antes e depois
+
+| Métrica (conjunto de teste) | Original | Revisado |
+|---|---|---|
+| Baseline (classe majoritária) | — | 0,636 |
+| Acurácia — Regressão Logística | 1,000 | 0,590 |
+| Acurácia — Random Forest | 0,974 | 0,637 |
+| Acurácia — Naive Bayes | 0,800 | 0,565 |
+| AUC — Random Forest | 0,998 | 0,822 |
+
+*Os dados são gerados aleatoriamente a cada execução, então os valores variam um pouco entre execuções; os padrões se mantêm.*
+
+**Leitura dos resultados revisados.** Sem o vazamento, a acurácia do melhor modelo fica praticamente igual ao baseline:
+o Random Forest quase sempre prevê a classe majoritária. A AUC de 0,82, porém, mostra que as probabilidades estimadas
+separam bem as classes — há sinal real, vindo principalmente da idade. O problema está no limiar de decisão combinado ao
+desbalanceamento, o que evidencia por que a acurácia sozinha é uma métrica inadequada nesse cenário. Na clusterização,
+o custo cai de forma linear, sem "cotovelo", indicando que os dados simulados não têm estrutura natural de grupos.
+
+**Próximos passos:** balanceamento de classes (pesos ou reamostragem), ajuste do limiar pela curva ROC, seleção de
+modelos por AUC/F1 da classe positiva e validação cruzada.
+
+Além das correções, a arquitetura foi reorganizada (veja [Decisões de projeto](#decisões-de-projeto)) e o build do
+container de Big Data voltou a funcionar: ele havia quebrado com a evolução de dependências sem versão fixada.
+
 ## Tecnologias Utilizadas
 
 - **Docker** e **Docker Compose**: orquestração dos containers e do ambiente.
