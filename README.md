@@ -2,63 +2,36 @@
 
 **Impacto de Infecções Sexualmente Transmissíveis (ISTs) no Brasil**
 
-Caio Grilo da Cunha · Gian Carlos de Freitas Moroni · Haryel Araújo de Oliveira
-Caliari · Jackeline Ayumi Kanekiyo
-Projeto Integrador de Data Science, UNIFEOB (São João da Boa Vista, SP),
-2025.1 · revisão metodológica em 2026
+Caio Grilo da Cunha · Gian Carlos de Freitas Moroni · Haryel Araújo de Oliveira Caliari · Jackeline Ayumi Kanekiyo
+
+Projeto Integrador de Data Science, UNIFEOB (São João da Boa Vista, SP), 2025.1 · revisão metodológica em 2026
 
 ---
 
 ## Resumo
 
-Dados de vigilância em saúde chegam de várias fontes, são preenchidos à mão e
-trazem inconsistências. Este trabalho desenvolveu um pipeline de dados
-conteinerizado, de ponta a ponta, para analisar registros de ISTs: geração,
-tratamento estatístico, processamento distribuído, aprendizado de máquina e
-visualização.
+Dados de vigilância em saúde chegam de várias fontes, são preenchidos à mão e trazem inconsistências. Este trabalho desenvolveu um pipeline de dados conteinerizado, de ponta a ponta, para analisar registros de ISTs: geração, tratamento estatístico, processamento distribuído, aprendizado de máquina e visualização.
 
-- **Pipeline:** cinco etapas isoladas em containers (Python, R, PySpark,
-  PostgreSQL e Grafana), orquestradas por Docker Compose e Jenkins e
-  executáveis com um único comando.
-- **Tratamento:** 10.000 registros simulados com ruído de preenchimento
-  humano (grafias inconsistentes, campos ausentes, outliers e datas
-  impossíveis), padronizados e validados em R.
-- **Classificação:** para prever a presença de IST a partir de dados
-  demográficos, o **Random Forest** atingiu **AUC de 0,80**, mas a acurácia
-  (**65,1 %**) ficou praticamente igual ao baseline (**64,9 %**), por causa
-  do desbalanceamento das classes.
-- **Revisão:** a primeira versão relatava **100 % de acurácia**. A revisão
-  mostrou que o número vinha de **vazamento de dados** e corrigiu esse e
-  outros seis problemas.
+- **Pipeline:** cinco etapas isoladas em containers (Python, R, PySpark, PostgreSQL e Grafana), orquestradas por Docker Compose e Jenkins e executáveis com um único comando.
+- **Tratamento:** 10.000 registros simulados com ruído de preenchimento humano (grafias inconsistentes, campos ausentes, outliers e datas impossíveis), padronizados e validados em R.
+- **Classificação:** para prever a presença de IST a partir de dados demográficos, o **Random Forest** atingiu **AUC de 0,80**, mas a acurácia (**65,1 %**) ficou praticamente igual ao baseline (**64,9 %**), por causa do desbalanceamento das classes.
+- **Revisão:** a primeira versão relatava **100 % de acurácia**. A revisão mostrou que o número vinha de **vazamento de dados** e corrigiu esse e outros seis problemas.
 
-**Palavras-chave:** big data; Apache Spark; engenharia de dados; aprendizado
-de máquina; vazamento de dados; saúde pública; ISTs.
+**Palavras-chave:** big data; Apache Spark; engenharia de dados; aprendizado de máquina; vazamento de dados; saúde pública; ISTs.
 
 ## Motivação
 
-As ISTs são um problema persistente de saúde pública. A Organização Mundial da
-Saúde tem metas globais de controle para o período 2022–2030 (WHO, 2022), e no
-Brasil o manejo dessas infecções segue protocolos nacionais do Ministério da
-Saúde (Brasil, 2022). Monitorar essas doenças depende de dados de
-notificação, e esses dados raramente estão limpos: há campos vazios, grafias
-divergentes e registros inválidos.
+As ISTs são um problema persistente de saúde pública. A Organização Mundial da Saúde tem metas globais de controle para o período 2022–2030 (WHO, 2022), e no Brasil o manejo dessas infecções segue protocolos nacionais do Ministério da Saúde (Brasil, 2022). Monitorar essas doenças depende de dados de notificação, e esses dados raramente estão limpos: há campos vazios, grafias divergentes e registros inválidos.
 
-Transformar dados assim em informação confiável exige mais do que um modelo.
-É preciso uma infraestrutura **reprodutível**, que trate os dados de forma
-explícita e auditável e que escale com o volume. Este trabalho combina:
+Transformar dados assim em informação confiável exige mais do que um modelo. É preciso uma infraestrutura **reprodutível**, que trate os dados de forma explícita e auditável e que escale com o volume. Este trabalho combina:
 
-- **Processamento distribuído** com Apache Spark (Zaharia et al., 2016) e o
-  paradigma MapReduce (Dean & Ghemawat, 2008).
-- **Modelagem dimensional** em esquema estrela para análises OLAP (Kimball &
-  Ross, 2013).
-- **Aprendizado supervisionado e não supervisionado** avaliado com métricas
-  adequadas a classes desbalanceadas (Fawcett, 2006; He & Garcia, 2009).
+- **Processamento distribuído** com Apache Spark (Zaharia et al., 2016) e o paradigma MapReduce (Dean & Ghemawat, 2008).
+- **Modelagem dimensional** em esquema estrela para análises OLAP (Kimball & Ross, 2013).
+- **Aprendizado supervisionado e não supervisionado** avaliado com métricas adequadas a classes desbalanceadas (Fawcett, 2006; He & Garcia, 2009).
 
 ## Dados
 
-Os dados são **sintéticos**, gerados com a biblioteca Faker (`pt_BR`). As
-distribuições foram definidas para imitar um cenário plausível, e o ruído foi
-inserido de propósito para exercitar a etapa de tratamento.
+Os dados são **sintéticos**, gerados com a biblioteca Faker (`pt_BR`). As distribuições foram definidas para imitar um cenário plausível, e o ruído foi inserido de propósito para exercitar a etapa de tratamento.
 
 | Item | Valor |
 |------|-------|
@@ -78,14 +51,11 @@ inserido de propósito para exercitar a etapa de tratamento.
 | Outliers de idade e renda | 0–5 ou 90–100 anos; R$ 5–100 ou R$ 30–100 mil | 1 % cada |
 | Data de teste no futuro | até ~3 anos à frente | 2 % |
 
-A idade depende da doença: cada IST tem uma média e um desvio próprios (por
-exemplo, 35 ± 7 anos para HIV e 24 ± 5 para Clamídia).
+A idade depende da doença: cada IST tem uma média e um desvio próprios (por exemplo, 35 ± 7 anos para HIV e 24 ± 5 para Clamídia).
 
 ## Metodologia
 
-Implementado com Python 3.11 (geração), R (tratamento), PySpark 3.4
-(processamento e ML), PostgreSQL 15, Grafana 10 e Jenkins, todos em containers
-Docker.
+Implementado com Python 3.11 (geração), R (tratamento), PySpark 3.4 (processamento e ML), PostgreSQL 15, Grafana 10 e Jenkins, todos em containers Docker.
 
 ```
  ETAPA 1  Ingestão       Faker (pt_BR) ─► dados_ist_realistas.csv (10.000 registros com ruído)
@@ -109,29 +79,20 @@ Docker.
 
 ### Tratamento dos dados
 
-1. **Exploração:** estatísticas descritivas, boxplots e detecção de outliers
-   pela regra do IQR.
-2. **Renda ausente:** imputação pela **mediana**, que é robusta aos outliers
-   de renda (Little & Rubin, 2019).
-3. **Datas futuras:** os registros são **removidos**, porque um teste não pode
-   ter sido feito no futuro.
-4. **Categorias:** as grafias são padronizadas. Gênero e localidade ausentes
-   viram a categoria explícita **"Não Informado"**, sem imputação pela moda,
-   para não inflar artificialmente o grupo majoritário.
+1. **Exploração:** estatísticas descritivas, boxplots e detecção de outliers pela regra do IQR.
+2. **Renda ausente:** imputação pela **mediana**, que é robusta aos outliers de renda (Little & Rubin, 2019).
+3. **Datas futuras:** os registros são **removidos**, porque um teste não pode ter sido feito no futuro.
+4. **Categorias:** as grafias são padronizadas. Gênero e localidade ausentes viram a categoria explícita **"Não Informado"**, sem imputação pela moda, para não inflar artificialmente o grupo majoritário.
 
 ### Processamento
 
-- **Data warehouse:** uma tabela fato (`fato_casos`) e cinco dimensões (tempo,
-  localidade, doença, escolaridade e gênero), consultadas em Spark SQL.
-- **MapReduce:** média de renda por IST e distribuição por faixa etária,
-  implementadas com `map` e `reduceByKey` sobre RDDs.
+- **Data warehouse:** uma tabela fato (`fato_casos`) e cinco dimensões (tempo, localidade, doença, escolaridade e gênero), consultadas em Spark SQL.
+- **MapReduce:** média de renda por IST e distribuição por faixa etária, implementadas com `map` e `reduceByKey` sobre RDDs.
 
 ### Classificação
 
 - **Tarefa:** classificação binária, `tem_ist` (1 se a doença é uma IST).
-- **Features:** idade, renda, gênero, localidade e escolaridade (as três
-  últimas com one-hot encoding). A coluna `doenca` é **excluída**, porque o
-  rótulo é derivado dela (veja [Revisão](#revisão-metodológica)).
+- **Features:** idade, renda, gênero, localidade e escolaridade (as três últimas com one-hot encoding). A coluna `doenca` é **excluída**, porque o rótulo é derivado dela (veja [Revisão](#revisão-metodológica)).
 - **Divisão:** treino/teste 70/30 (`seed=42`).
 - **Modelos:**
 
@@ -144,14 +105,11 @@ Docker.
 
 ### Clusterização
 
-As features são padronizadas (média 0, desvio 1) antes do **K-Means** (Jain,
-2010). K varia de 2 a 7 pelo método do cotovelo, e os grupos com K = 4 são
-projetados em duas dimensões por **PCA**.
+As features são padronizadas (média 0, desvio 1) antes do **K-Means** (Jain, 2010). K varia de 2 a 7 pelo método do cotovelo, e os grupos com K = 4 são projetados em duas dimensões por **PCA**.
 
 ## Resultados
 
-Valores de uma execução de referência. Como os dados são gerados a cada
-execução, os números variam levemente, mas os padrões se mantêm.
+Valores de uma execução de referência. Como os dados são gerados a cada execução, os números variam levemente, mas os padrões se mantêm.
 
 ### Tratamento
 
@@ -176,11 +134,8 @@ execução, os números variam levemente, mas os padrões se mantêm.
 | Regressão Logística | 58,84 % | — | — |
 | Naive Bayes | 55,67 % | — | — |
 
-- **A acurácia empata com o baseline.** O Random Forest quase sempre prevê a
-  classe majoritária ("sem IST"): o recall da classe positiva é de 4 %.
-- **Mas a AUC de 0,80 mostra sinal real.** As probabilidades estimadas
-  separam bem as classes, e o sinal vem sobretudo da **idade**, já que cada
-  IST se concentra em uma faixa etária (figura abaixo, à direita).
+- **A acurácia empata com o baseline.** O Random Forest quase sempre prevê a classe majoritária ("sem IST"): o recall da classe positiva é de 4 %.
+- **Mas a AUC de 0,80 mostra sinal real.** As probabilidades estimadas separam bem as classes, e o sinal vem sobretudo da **idade**, já que cada IST se concentra em uma faixa etária (figura abaixo, à direita).
 - A Regressão Logística e o Naive Bayes ficaram **abaixo do baseline**.
 
 <p float="left">
@@ -188,19 +143,15 @@ execução, os números variam levemente, mas os padrões se mantêm.
   <img src="docs/img/media_idade_por_doenca.png" width="55%" />
 </p>
 
-> Curva ROC do Random Forest e média de idade por tipo de IST, geradas pelo
-> notebook [`main.ipynb`](services/bigdata/main.ipynb).
+> Curva ROC do Random Forest e média de idade por tipo de IST, geradas pelo notebook [`main.ipynb`](services/bigdata/main.ipynb).
 
 ### Clusterização
 
-O custo (WCSS) cai de forma quase linear com K, de 476,7 mil (K = 2) para
-429,5 mil (K = 7), cerca de 2 % por cluster adicional. **Não há "cotovelo".**
+O custo (WCSS) cai de forma quase linear com K, de 476,7 mil (K = 2) para 429,5 mil (K = 7), cerca de 2 % por cluster adicional. **Não há "cotovelo".**
 
 ### Revisão metodológica
 
-A primeira versão do projeto (2025) está preservada na tag
-[`v1.0-pi-2025`](../../tree/v1.0-pi-2025). Uma revisão posterior encontrou
-os problemas abaixo, e cada correção está em um commit próprio.
+A primeira versão do projeto (2025) está preservada na tag [`v1.0-pi-2025`](../../tree/v1.0-pi-2025). Uma revisão posterior encontrou os problemas abaixo, e cada correção está em um commit próprio.
 
 **Tabela 4.** Métricas antes e depois da correção do vazamento de dados.
 
@@ -225,63 +176,34 @@ os problemas abaixo, e cada correção está em um commit próprio.
 
 ## Discussão
 
-**1. A acurácia é uma métrica enganosa neste problema.** Com ~65 % dos
-registros na classe negativa, um modelo que sempre responde "sem IST" já
-atinge 65 %. O Random Forest tem AUC de 0,80, ou seja, ordena bem os
-pacientes por risco. O problema está no **limiar de decisão** de 0,5,
-inadequado para classes desbalanceadas (He & Garcia, 2009). A informação
-existe, mas o critério de decisão não a aproveita.
+**1. A acurácia é uma métrica enganosa neste problema.** Com ~65 % dos registros na classe negativa, um modelo que sempre responde "sem IST" já atinge 65 %. O Random Forest tem AUC de 0,80, ou seja, ordena bem os pacientes por risco. O problema está no **limiar de decisão** de 0,5, inadequado para classes desbalanceadas (He & Garcia, 2009). A informação existe, mas o critério de decisão não a aproveita.
 
-**2. O vazamento de dados produz resultados plausíveis e falsos.** Na v1.0, a
-coluna `doenca` estava entre as features. Como `tem_ist` é uma função
-determinística dela, o modelo não precisava aprender nada, e bastava uma
-regra linear para chegar a 100 %. É um caso clássico de *leakage* (Kaufman et
-al., 2012): o sintoma, um desempenho bom demais, é justamente o que costuma
-passar sem questionamento.
+**2. O vazamento de dados produz resultados plausíveis e falsos.** Na v1.0, a coluna `doenca` estava entre as features. Como `tem_ist` é uma função determinística dela, o modelo não precisava aprender nada, e bastava uma regra linear para chegar a 100 %. É um caso clássico de *leakage* (Kaufman et al., 2012): o sintoma, um desempenho bom demais, é justamente o que costuma passar sem questionamento.
 
-**3. Os modelos abaixo do baseline têm causas identificáveis.** A Regressão
-Logística recebe features sem padronização (renda na casa dos milhares ao
-lado de variáveis binárias) e só 10 iterações. O Naive Bayes multinomial
-assume distribuições de contagem que não correspondem à idade e à renda.
+**3. Os modelos abaixo do baseline têm causas identificáveis.** A Regressão Logística recebe features sem padronização (renda na casa dos milhares ao lado de variáveis binárias) e só 10 iterações. O Naive Bayes multinomial assume distribuições de contagem que não correspondem à idade e à renda.
 
-**4. A ausência de clusters reflete os dados.** Na simulação, os atributos
-são sorteados quase de forma independente. Sem estrutura latente, o K-Means
-particiona o espaço de forma arbitrária, e o WCSS decresce linearmente. É o
-resultado esperado, não uma falha do algoritmo.
+**4. A ausência de clusters reflete os dados.** Na simulação, os atributos são sorteados quase de forma independente. Sem estrutura latente, o K-Means particiona o espaço de forma arbitrária, e o WCSS decresce linearmente. É o resultado esperado, não uma falha do algoritmo.
 
 ## Conclusões
 
-- A arquitetura em containers isolados, que se comunicam por **contratos de
-  dados** (arquivos e tabelas), permitiu executar, depurar e substituir cada
-  etapa de forma independente.
-- O tratamento explícito do ruído mostrou que **pequenas escolhas mudam os
-  dados**: imputar pela moda ou atribuir rótulos inválidos a um *factor*
-  distorceu ~10–20 % dos registros na primeira versão.
-- Há **sinal preditivo real** na idade (AUC de 0,80), mas a acurácia, sozinha,
-  esconde que o modelo quase não identifica a classe positiva.
-- O resultado de 100 % da primeira versão era **vazamento de dados**. Um
-  resultado modesto e bem explicado vale mais do que um desempenho perfeito e
-  falso.
+- A arquitetura em containers isolados, que se comunicam por **contratos de dados** (arquivos e tabelas), permitiu executar, depurar e substituir cada etapa de forma independente.
+- O tratamento explícito do ruído mostrou que **pequenas escolhas mudam os dados**: imputar pela moda ou atribuir rótulos inválidos a um *factor* distorceu ~10–20 % dos registros na primeira versão.
+- Há **sinal preditivo real** na idade (AUC de 0,80), mas a acurácia, sozinha, esconde que o modelo quase não identifica a classe positiva.
+- O resultado de 100 % da primeira versão era **vazamento de dados**. Um resultado modesto e bem explicado vale mais do que um desempenho perfeito e falso.
 
 ## Trabalhos futuros
 
 Melhorias na modelagem:
 
-- **Balanceamento de classes:** pesos por classe ou reamostragem no conjunto
-  de treino.
-- **Ajuste do limiar** pela curva ROC, e seleção de modelos por AUC ou pelo F1
-  da classe positiva.
-- **Validação cruzada** e padronização das features para a Regressão
-  Logística.
+- **Balanceamento de classes:** pesos por classe ou reamostragem no conjunto de treino.
+- **Ajuste do limiar** pela curva ROC, e seleção de modelos por AUC ou pelo F1 da classe positiva.
+- **Validação cruzada** e padronização das features para a Regressão Logística.
 
 Extensões do pipeline:
 
-- **Dados reais:** integrar bases públicas de notificação, como o
-  DATASUS/SINAN, no lugar dos dados sintéticos.
-- **Escala:** executar o Spark em cluster. O código de análise independe do
-  modo de execução.
-- **Qualidade:** testes automatizados das transformações e validação de schema
-  entre as etapas.
+- **Dados reais:** integrar bases públicas de notificação, como o DATASUS/SINAN, no lugar dos dados sintéticos.
+- **Escala:** executar o Spark em cluster. O código de análise independe do modo de execução.
+- **Qualidade:** testes automatizados das transformações e validação de schema entre as etapas.
 
 ## Como executar
 
@@ -303,10 +225,7 @@ docker compose run --rm bigdata
 | `grafana` | `infra/grafana/` | Dashboard em http://localhost:3000 (`admin` / `admin`), com o datasource já provisionado. |
 | `jenkins` | `Jenkinsfile` | Executa o pipeline periodicamente, em http://localhost:8080. |
 
-Credenciais e portas têm valores padrão e podem ser sobrescritas copiando
-[`.env.example`](.env.example) para `.env`. As constantes de domínio e os
-hiperparâmetros ficam em um módulo `config` por serviço. Os resultados podem
-ser vistos de forma consolidada em [`web/index.html`](web/index.html).
+Credenciais e portas têm valores padrão e podem ser sobrescritas copiando [`.env.example`](.env.example) para `.env`. As constantes de domínio e os hiperparâmetros ficam em um módulo `config` por serviço. Os resultados podem ser vistos de forma consolidada em [`web/index.html`](web/index.html).
 
 ## Estrutura do repositório
 
