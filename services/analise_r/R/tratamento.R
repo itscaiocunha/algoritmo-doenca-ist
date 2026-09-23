@@ -42,16 +42,19 @@ padronizar_genero <- function(dados) {
 }
 
 padronizar_localidade <- function(dados) {
-  dados$localidade[dados$localidade == ""] <- "Não Informado"
+  dados$localidade <- dados$localidade |>
+    recodificar("", "Não Informado") |>
+    factor()
   dados
 }
 
 padronizar_nivel_educacional <- function(dados) {
   print(summary(dados$nivel_educacional))
 
-  dados$nivel_educacional[dados$nivel_educacional %in% c("fundamnetal", "medio incompleto")] <- "Fundamental"
-  dados$nivel_educacional[dados$nivel_educacional == "superio"] <- "Superior"
-  dados$nivel_educacional[dados$nivel_educacional == ""] <- "Fundamental"
-  dados$nivel_educacional <- factor(dados$nivel_educacional)
+  dados$nivel_educacional <- dados$nivel_educacional |>
+    recodificar(c("fundamnetal", "medio incompleto"), "Fundamental") |>
+    recodificar("superio", "Superior") |>
+    recodificar("", "Fundamental") |>
+    factor()
   dados
 }
